@@ -1,0 +1,50 @@
+# Snapshot generated at: 2026-02-20T09:43:54+07:00
+# Project: backend
+
+## podman ps (matching name contains project):
+backend_db_1      Exited (0) 15 hours ago   docker.io/library/postgres:15-alpine   5432/tcp
+backend_redis_1   Exited (0) 15 hours ago   docker.io/library/redis:7-alpine       6379/tcp
+backend_worker_1  Exited (0) 292 years ago  localhost/backend_worker:latest        8000/tcp
+backend_api_1     Exited (0) 292 years ago  localhost/backend_api:latest           8000/tcp
+backend_nginx_1   Exited (0) 292 years ago  docker.io/library/nginx:stable-alpine  0.0.0.0:8080->80/tcp
+
+## podman-compose ps:
+CONTAINER ID  IMAGE                                  COMMAND               CREATED       STATUS                    PORTS                 NAMES
+f2f973149fc4  docker.io/library/postgres:15-alpine   postgres              23 hours ago  Exited (0) 15 hours ago   5432/tcp              backend_db_1
+fc42b800b687  docker.io/library/redis:7-alpine       redis-server          23 hours ago  Exited (0) 15 hours ago   6379/tcp              backend_redis_1
+0c53eb6a8105  localhost/backend_worker:latest        celery -A app.tas...  23 hours ago  Exited (0) 292 years ago  8000/tcp              backend_worker_1
+245e325f7322  localhost/backend_api:latest           gunicorn -k uvico...  15 hours ago  Exited (0) 292 years ago  8000/tcp              backend_api_1
+890dd27f7ea4  docker.io/library/nginx:stable-alpine  nginx -g daemon o...  15 hours ago  Exited (0) 292 years ago  0.0.0.0:8080->80/tcp  backend_nginx_1
+
+## nginx config (nginx/nginx.conf):
+worker_processes 1;
+
+events { worker_connections 1024; }
+
+http {
+  sendfile on;
+
+  upstream api_upstream {
+    server api:8000;
+  }
+
+  server {
+    listen 80;
+
+    client_max_body_size 25m;
+
+    location = / {
+      default_type text/plain;
+      return 200 "NGINX OK. Backend is at /api (try /api/docs)\n";
+    }
+
+    location /api/ {
+      proxy_pass http://api_upstream/api/;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_read_timeout 300;
+    }
+  }
+}
